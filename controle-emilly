@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle Financeiro - Emilly</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brandYellow: '#FACC15',
+                        brandYellowHover: '#EAB308',
+                        statusPending: '#FACC15',
+                        statusOverdue: '#EF4444',
+                        statusPaid: '#22C55E',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .underline-pending {
+            text-decoration: underline;
+            text-decoration-color: #FACC15;
+            text-decoration-thickness: 3px;
+            text-underline-offset: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-100 dark:bg-black text-slate-800 dark:text-neutral-100 transition-colors duration-200">
+
+    <!-- Header -->
+    <header class="border-b border-slate-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80 backdrop-blur sticky top-0 z-10">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>Olá, Emilly</span> 👋
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-neutral-400">Gerenciador de Contas & Gastos</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <!-- Theme Toggle -->
+                <button id="themeToggle" onclick="toggleTheme()" class="p-2 rounded-lg bg-slate-200 dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 hover:bg-slate-300 dark:hover:bg-neutral-700 transition">
+                    <i id="themeIcon" class="fa-solid fa-moon"></i>
+                </button>
+                <!-- Add Bill Button -->
+                <button onclick="openModal()" class="bg-brandYellow hover:bg-brandYellowHover text-black font-bold px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition shadow-sm">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Nova Conta</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 py-6 space-y-6">
+
+        <!-- Cards / Filters -->
+        <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <!-- Paid Card -->
+            <div onclick="setFilter('paid')" id="card-paid" class="cursor-pointer bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-xl p-4 transition hover:border-emerald-500">
+                <div class="flex justify-between items-center text-emerald-500 font-semibold mb-1 text-sm">
+                    <span>Em Dia / Pagas</span>
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <div id="totalPaid" class="text-2xl font-bold text-emerald-500">R$ 0,00</div>
+                <div id="countPaid" class="text-xs text-slate-500 dark:text-neutral-400 mt-1">0 contas</div>
+            </div>
+
+            <!-- Pending Card -->
+            <div onclick="setFilter('pending')" id="card-pending" class="cursor-pointer bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-xl p-4 transition hover:border-yellow-500">
+                <div class="flex justify-between items-center text-yellow-500 font-semibold mb-1 text-sm">
+                    <span>Pendentes</span>
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+                <div id="totalPending" class="text-2xl font-bold text-yellow-500">R$ 0,00</div>
+                <div id="countPending" class="text-xs text-slate-500 dark:text-neutral-400 mt-1">0 contas</div>
+            </div>
+
+            <!-- Overdue Card -->
+            <div onclick="setFilter('overdue')" id="card-overdue" class="cursor-pointer bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-xl p-4 transition hover:border-red-500">
+                <div class="flex justify-between items-center text-red-500 font-semibold mb-1 text-sm">
+                    <span>Atrasadas</span>
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div id="totalOverdue" class="text-2xl font-bold text-red-500">R$ 0,00</div>
+                <div id="countOverdue" class="text-xs text-slate-500 dark:text-neutral-400 mt-1">0 contas</div>
+            </div>
+        </section>
+
+        <!-- Calendar Filter -->
+        <section class="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-xl p-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <h2 class="font-semibold text-sm flex items-center gap-2">
+                    <i class="fa-regular fa-calendar text-brandYellow"></i>
+                    <span>Filtrar por Calendário</span>
+                </h2>
+                <button onclick="clearDateFilter()" id="clearDateBtn" class="hidden text-xs text-brandYellow hover:underline">
+                    Ver todas as datas
+                </button>
+            </div>
+            <input type="date" id="calendarFilter" onchange="filterByDate(this.value)" class="w-full bg-slate-100 dark:bg-neutral-800 border border-slate-300 dark:border-neutral-700 rounded-lg p-2.5 text-sm focus:outline-none focus:border-brandYellow">
+        </section>
+
+        <!-- Active Filter Indicator -->
+        <div class="flex items-center justify-between text-sm">
+            <span id="filterTitle" class="font-medium text-slate-600 dark:text-neutral-400">Exibindo: Todas as contas</span>
+            <button onclick="setFilter('all')" id="resetFilterBtn" class="hidden text-xs text-brandYellow hover:underline">Limpar filtros</button>
+        </div>
+
+        <!-- Bills List -->
+        <section id="billsList" class="space-y-3">
+            <!-- Items injected by JavaScript -->
+        </section>
+
+    </main>
+
+    <!-- Modal Form -->
+    <div id="modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold">Cadastrar Nova Conta</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <form id="billForm" onsubmit="handleSaveBill(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium mb-1">Descrição</label>
+                    <input type="text" id="billTitle" placeholder="Ex: Conta de Luz, Internet..." required class="w-full bg-slate-100 dark:bg-neutral-800 border border-slate-300 dark:border-neutral-700 rounded-lg p-2.5 text-sm focus:outline-none focus:border-brandYellow">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Valor (R$)</label>
+                        <input type="number" step="0.01" id="billValue" placeholder="0,00" required class="w-full bg-slate-100 dark:bg-neutral-800 border border-slate-300 dark:border-neutral-700 rounded-lg p-2.5 text-sm focus:outline-none focus:border-brandYellow">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Vencimento</label>
+                        <input type="date" id="billDate" required class="w-full bg-slate-100 dark:bg-neutral-800 border border-slate-300 dark:border-neutral-700 rounded-lg p-2.5 text-sm focus:outline-none focus:border-brandYellow">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="billIsFixed" class="w-4 h-4 accent-brandYellow rounded cursor-pointer">
+                    <label for="billIsFixed" class="text-xs font-medium cursor-pointer">Conta Fixa Mensal (Água, Luz, Internet...)</label>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-4">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg text-sm bg-slate-200 dark:bg-neutral-800 hover:bg-slate-300 dark:hover:bg-neutral-700">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 rounded-lg text-sm bg-brandYellow hover:bg-brandYellowHover text-black font-bold">Salvar Conta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        let bills = JSON.parse(localStorage.getItem('emilly_bills')) || [];
+        let currentFilter = 'all';
+        let selectedDate = '';
+
+        function saveToStorage() {
+            localStorage.setItem('emilly_bills', JSON.stringify(bills));
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                icon.className = 'fa-solid fa-sun';
+            } else {
+                html.classList.add('dark');
+                icon.className = 'fa-solid fa-moon';
+            }
+        }
+
+        function openModal() {
+            document.getElementById('modal').classList.remove('hidden');
+            document.getElementById('modal').classList.add('flex');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+            document.getElementById('modal').classList.remove('flex');
+            document.getElementById('billForm').reset();
+        }
+
+        function handleSaveBill(e) {
+            e.preventDefault();
+            const title = document.getElementById('billTitle').value;
+            const value = parseFloat(document.getElementById('billValue').value);
+            const date = document.getElementById('billDate').value;
+            const isFixed = document.getElementById('billIsFixed').checked;
+
+            const newBill = {
+                id: Date.now(),
+                title,
+                value,
+                date,
+                isFixed,
+                status: 'pending'
+            };
+
+            bills.push(newBill);
+            saveToStorage();
+            closeModal();
+            render();
+        }
+
+        function toggleStatus(id) {
+            bills = bills.map(bill => {
+                if (bill.id === id) {
+                    bill.status = bill.status === 'paid' ? 'pending' : 'paid';
+                }
+                return bill;
+            });
+            saveToStorage();
+            render();
+        }
+
+        function deleteBill(id) {
+            if (confirm('Deseja excluir esta conta?')) {
+                bills = bills.filter(bill => bill.id !== id);
+                saveToStorage();
+                render();
+            }
+        }
+
+        function getActualStatus(bill) {
+            if (bill.status === 'paid') return 'paid';
+            const today = new Date().toISOString().split('T')[0];
+            if (bill.date < today) return 'overdue';
+            return 'pending';
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            render();
+        }
+
+        function filterByDate(date) {
+            selectedDate = date;
+            document.getElementById('clearDateBtn').classList.toggle('hidden', !date);
+            render();
+        }
+
+        function clearDateFilter() {
+            selectedDate = '';
+            document.getElementById('calendarFilter').value = '';
+            document.getElementById('clearDateBtn').classList.add('hidden');
+            render();
+        }
+
+        function addToGoogleCalendar(title, value, date) {
+            const formattedDate = date.replace(/-/g, '');
+            const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('Pagar: ' + title)}&details=${encodeURIComponent('Valor: R$ ' + value.toFixed(2))}&dates=${formattedDate}/${formattedDate}`;
+            window.open(gCalUrl, '_blank');
+        }
+
+        function render() {
+            const listEl = document.getElementById('billsList');
+            listEl.innerHTML = '';
+
+            let totalPaid = 0, totalPending = 0, totalOverdue = 0;
+            let countPaid = 0, countPending = 0, countOverdue = 0;
+
+            const filteredBills = bills.filter(bill => {
+                const status = getActualStatus(bill);
+                
+                if (status === 'paid') { totalPaid += bill.value; countPaid++; }
+                if (status === 'pending') { totalPending += bill.value; countPending++; }
+                if (status === 'overdue') { totalOverdue += bill.value; countOverdue++; }
+
+                if (selectedDate && bill.date !== selectedDate) return false;
+                if (currentFilter !== 'all' && status !== currentFilter) return false;
+
+                return true;
+            });
+
+            document.getElementById('totalPaid').innerText = `R$ ${totalPaid.toFixed(2)}`;
+            document.getElementById('totalPending').innerText = `R$ ${totalPending.toFixed(2)}`;
+            document.getElementById('totalOverdue').innerText = `R$ ${totalOverdue.toFixed(2)}`;
+
+            document.getElementById('countPaid').innerText = `${countPaid} conta(s)`;
+            document.getElementById('countPending').innerText = `${countPending} conta(s)`;
+            document.getElementById('countOverdue').innerText = `${countOverdue} conta(s)`;
+
+            const filterBtn = document.getElementById('resetFilterBtn');
+            const filterTitle = document.getElementById('filterTitle');
+            if (currentFilter !== 'all' || selectedDate) {
+                filterBtn.classList.remove('hidden');
+                filterTitle.innerText = `Exibindo filtrados (${filteredBills.length})`;
+            } else {
+                filterBtn.classList.add('hidden');
+                filterTitle.innerText = `Exibindo: Todas as contas (${bills.length})`;
+            }
+
+            if (filteredBills.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-center py-10 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-xl">
+                        <i class="fa-solid fa-receipt text-3xl text-slate-300 dark:text-neutral-700 mb-2"></i>
+                        <p class="text-sm text-slate-500 dark:text-neutral-400">Nenhuma conta encontrada.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filteredBills.forEach(bill => {
+                const status = getActualStatus(bill);
+                let statusClasses = '';
+                let statusBadge = '';
+
+                if (status === 'paid') {
+                    statusClasses = 'border-l-4 border-l-emerald-500';
+                    statusBadge = `<span class="bg-emerald-500/10 text-emerald-500 text-xs px-2.5 py-1 rounded-full font-semibold">Em Dia / Paga</span>`;
+                } else if (status === 'overdue') {
+                    statusClasses = 'border-l-4 border-l-red-500';
+                    statusBadge = `<span class="bg-red-500/10 text-red-500 text-xs px-2.5 py-1 rounded-full font-semibold">Atrasada</span>`;
+                } else {
+                    statusClasses = 'border-l-4 border-l-yellow-500 underline-pending';
+                    statusBadge = `<span class="bg-yellow-500/10 text-yellow-500 text-xs px-2.5 py-1 rounded-full font-semibold">Pendente</span>`;
+                }
+
+                const fixedTag = bill.isFixed ? `<span class="bg-brandYellow/20 text-brandYellow text-[10px] px-2 py-0.5 rounded font-bold uppercase">Fixa</span>` : '';
+
+                const item = document.createElement('div');
+                item.className = `bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 transition ${statusClasses}`;
+                
+                item.innerHTML = `
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <h4 class="font-bold text-base">${bill.title}</h4>
+                            ${fixedTag}
+                        </div>
+                        <div class="text-xs text-slate-500 dark:text-neutral-400 flex items-center gap-3">
+                            <span>Vencimento: ${bill.date.split('-').reverse().join('/')}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <div class="text-right">
+                            <div class="font-bold text-lg">R$ ${bill.value.toFixed(2)}</div>
+                            <div>${statusBadge}</div>
+                        </div>
+
+                        <div class="flex items-center gap-1 border-l border-slate-200 dark:border-neutral-800 pl-3">
+                            <button onclick="addToGoogleCalendar('${bill.title}', ${bill.value}, '${bill.date}')" title="Lembrete Agenda" class="p-2 text-slate-400 hover:text-brandYellow transition">
+                                <i class="fa-regular fa-calendar-plus"></i>
+                            </button>
+                            <button onclick="toggleStatus(${bill.id})" title="Alternar Status" class="p-2 text-slate-400 hover:text-emerald-500 transition">
+                                <i class="fa-solid fa-circle-check"></i>
+                            </button>
+                            <button onclick="deleteBill(${bill.id})" title="Excluir" class="p-2 text-slate-400 hover:text-red-500 transition">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        document.getElementById('resetFilterBtn').onclick = () => {
+            currentFilter = 'all';
+            clearDateFilter();
+        };
+
+        render();
+    </script>
+</body>
+</html>
