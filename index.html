@@ -97,16 +97,21 @@
             </div>
         </section>
 
-        <!-- Calendar Filter -->
-        <section class="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-xl p-4">
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <!-- Calendar Filter & Mode Switcher -->
+        <section class="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-xl p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
                 <h2 class="font-semibold text-sm flex items-center gap-2">
                     <i class="fa-regular fa-calendar text-brandYellow"></i>
                     <span>Filtrar por Calendário</span>
                 </h2>
-                <button onclick="clearDateFilter()" id="clearDateBtn" class="hidden text-xs text-brandYellow hover:underline">
-                    Ver todas as datas
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="setShowAllMode(true)" id="showAllBtn" class="text-xs px-2.5 py-1 rounded bg-slate-200 dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 font-semibold">
+                        Ver Tudo (Incluindo Meses Futuros)
+                    </button>
+                    <button onclick="clearDateFilter()" id="clearDateBtn" class="hidden text-xs text-brandYellow hover:underline">
+                        Limpar Filtro
+                    </button>
+                </div>
             </div>
             <input type="date" id="calendarFilter" onchange="filterByDate(this.value)" class="w-full bg-slate-100 dark:bg-neutral-800 border border-slate-300 dark:border-neutral-700 rounded-lg p-2.5 text-sm focus:outline-none focus:border-brandYellow">
         </section>
@@ -144,14 +149,14 @@
                         <input type="number" step="0.01" id="billValue" placeholder="0,00" required class="w-full bg-slate-100 dark:bg-neutral-800 border border-slate-300 dark:border-neutral-700 rounded-lg p-2.5 text-sm focus:outline-none focus:border-brandYellow">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium mb-1">Vencimento</label>
+                        <label class="block text-xs font-medium mb-1">Vencimento Primeiro Mês</label>
                         <input type="date" id="billDate" required class="w-full bg-slate-100 dark:bg-neutral-800 border border-slate-300 dark:border-neutral-700 rounded-lg p-2.5 text-sm focus:outline-none focus:border-brandYellow">
                     </div>
                 </div>
 
                 <div class="flex items-center gap-2 pt-2">
                     <input type="checkbox" id="billIsFixed" class="w-4 h-4 accent-brandYellow rounded cursor-pointer">
-                    <label for="billIsFixed" class="text-xs font-medium cursor-pointer">Conta Fixa Mensal (Repetir para os próximos 12 meses)</label>
+                    <label for="billIsFixed" class="text-xs font-medium cursor-pointer">Conta Fixa Mensal (Gerar para os próximos 12 meses)</label>
                 </div>
 
                 <div class="flex justify-end gap-2 pt-4">
@@ -167,6 +172,7 @@
         let bills = JSON.parse(localStorage.getItem('emilly_bills')) || [];
         let currentFilter = 'all';
         let selectedDate = '';
+        let showAllFuture = false;
 
         function saveToStorage() {
             localStorage.setItem('emilly_bills', JSON.stringify(bills));
@@ -203,31 +209,32 @@
             const isFixed = document.getElementById('billIsFixed').checked;
 
             if (isFixed) {
-                // Pega exatamente o ano, mês e dia digitados
-                const [yearStr, monthStr, dayStr] = initialDateStr.split('-');
-                let baseYear = parseInt(yearStr, 10);
-                let baseMonth = parseInt(monthStr, 10); // 1 to 12
+                // Separa ano, mês e dia da data inserida
+                const parts = initialDateStr.split('-');
+                let baseYear = parseInt(parts[0], 10);
+                let baseMonth = parseInt(parts[1], 10);
+                let dayStr = parts[2];
+                
                 const groupId = Date.now();
 
+                // Loop para criar exatamente 12 meses consecutivos no mesmo dia
                 for (let i = 0; i < 12; i++) {
                     let currentMonth = baseMonth + i;
                     let currentYear = baseYear;
 
-                    // Ajusta a virada do ano
                     while (currentMonth > 12) {
                         currentMonth -= 12;
                         currentYear += 1;
                     }
 
-                    const finalMonth = String(currentMonth).padStart(2, '0');
-                    const finalDay = dayStr.padStart(2, '0');
-                    const dateFormatted = `${currentYear}-${finalMonth}-${finalDay}`;
+                    const monthFormatted = String(currentMonth).padStart(2, '0');
+                    const dateFormatted = `${currentYear}-${monthFormatted}-${dayStr}`;
 
                     bills.push({
-                        id: groupId + i,
+                        id: groupId + "_" + i,
                         groupId: groupId,
-                        title,
-                        value,
+                        title: title,
+                        value: value,
                         date: dateFormatted,
                         isFixed: true,
                         status: 'pending'
@@ -235,9 +242,9 @@
                 }
             } else {
                 bills.push({
-                    id: Date.now(),
-                    title,
-                    value,
+                    id: Date.now().toString(),
+                    title: title,
+                    value: value,
                     date: initialDateStr,
                     isFixed: false,
                     status: 'pending'
@@ -246,12 +253,13 @@
 
             saveToStorage();
             closeModal();
+            showAllFuture = true; // Ativa para mostrar todas as contas geradas
             render();
         }
 
         function toggleStatus(id) {
             bills = bills.map(bill => {
-                if (bill.id === id) {
+                if (String(bill.id) === String(id)) {
                     bill.status = bill.status === 'paid' ? 'pending' : 'paid';
                 }
                 return bill;
@@ -261,19 +269,19 @@
         }
 
         function deleteBill(id) {
-            const targetBill = bills.find(b => b.id === id);
+            const targetBill = bills.find(b => String(b.id) === String(id));
             if (!targetBill) return;
 
             if (targetBill.isFixed && targetBill.groupId) {
-                const choice = confirm('Esta é uma conta fixa mensal.\n\nClique em OK para excluir TODAS as mensalidades recorrentes dela.\nClique em Cancelar para excluir APENAS esta do mês atual.');
+                const choice = confirm('Esta é uma conta fixa mensal.\n\nClique em OK para excluir TODAS as 12 mensalidades recorrentes dela.\nClique em Cancelar para excluir APENAS esta do mês selecionado.');
                 if (choice) {
                     bills = bills.filter(b => b.groupId !== targetBill.groupId);
                 } else {
-                    bills = bills.filter(b => b.id !== id);
+                    bills = bills.filter(b => String(b.id) !== String(id));
                 }
             } else {
                 if (confirm('Deseja excluir esta conta?')) {
-                    bills = bills.filter(b => b.id !== id);
+                    bills = bills.filter(b => String(b.id) !== String(id));
                 }
             }
             saveToStorage();
@@ -305,6 +313,11 @@
             render();
         }
 
+        function setShowAllMode(val) {
+            showAllFuture = val;
+            render();
+        }
+
         function addToGoogleCalendar(title, value, date) {
             const formattedDate = date.replace(/-/g, '');
             const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('Pagar: ' + title)}&details=${encodeURIComponent('Valor: R$ ' + value.toFixed(2))}&dates=${formattedDate}/${formattedDate}`;
@@ -318,7 +331,7 @@
             let totalPaid = 0, totalPending = 0, totalOverdue = 0;
             let countPaid = 0, countPending = 0, countOverdue = 0;
 
-            // Ordena as contas por data de vencimento
+            // Ordena as contas por data
             bills.sort((a, b) => a.date.localeCompare(b.date));
 
             const filteredBills = bills.filter(bill => {
@@ -349,14 +362,14 @@
                 filterTitle.innerText = `Exibindo filtrados (${filteredBills.length})`;
             } else {
                 filterBtn.classList.add('hidden');
-                filterTitle.innerText = `Exibindo: Todas as contas (${bills.length})`;
+                filterTitle.innerText = `Exibindo: Todas as contas salvas (${bills.length})`;
             }
 
             if (filteredBills.length === 0) {
                 listEl.innerHTML = `
                     <div class="text-center py-10 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-xl">
                         <i class="fa-solid fa-receipt text-3xl text-slate-300 dark:text-neutral-700 mb-2"></i>
-                        <p class="text-sm text-slate-500 dark:text-neutral-400">Nenhuma conta encontrada.</p>
+                        <p class="text-sm text-slate-500 dark:text-neutral-400">Nenhuma conta encontrada nesta visualização.</p>
                     </div>
                 `;
                 return;
@@ -387,18 +400,4 @@
                     <div class="space-y-1">
                         <div class="flex items-center gap-2">
                             <h4 class="font-bold text-base">${bill.title}</h4>
-                            ${fixedTag}
-                        </div>
-                        <div class="text-xs text-slate-500 dark:text-neutral-400 flex items-center gap-3">
-                            <span>Vencimento: ${bill.date.split('-').reverse().join('/')}</span>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-4">
-                        <div class="text-right">
-                            <div class="font-bold text-lg">R$ ${bill.value.toFixed(2)}</div>
-                            <div>${statusBadge}</div>
-                        </div>
-
-                        <div class="flex items-center gap-1 border-l border-slate-200 dark:border-neutral-800 pl-3">
-                            <button o
+                            ${fixedTa
