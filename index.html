@@ -151,7 +151,7 @@
 
                 <div class="flex items-center gap-2 pt-2">
                     <input type="checkbox" id="billIsFixed" class="w-4 h-4 accent-brandYellow rounded cursor-pointer">
-                    <label for="billIsFixed" class="text-xs font-medium cursor-pointer">Conta Fixa Mensal (Água, Luz, Internet...)</label>
+                    <label for="billIsFixed" class="text-xs font-medium cursor-pointer">Conta Fixa Mensal (Repetir para os próximos 12 meses)</label>
                 </div>
 
                 <div class="flex justify-end gap-2 pt-4">
@@ -199,19 +199,51 @@
             e.preventDefault();
             const title = document.getElementById('billTitle').value;
             const value = parseFloat(document.getElementById('billValue').value);
-            const date = document.getElementById('billDate').value;
+            const initialDateStr = document.getElementById('billDate').value;
             const isFixed = document.getElementById('billIsFixed').checked;
 
-            const newBill = {
-                id: Date.now(),
-                title,
-                value,
-                date,
-                isFixed,
-                status: 'pending'
-            };
+            if (isFixed) {
+                // Pega exatamente o ano, mês e dia digitados
+                const [yearStr, monthStr, dayStr] = initialDateStr.split('-');
+                let baseYear = parseInt(yearStr, 10);
+                let baseMonth = parseInt(monthStr, 10); // 1 to 12
+                const groupId = Date.now();
 
-            bills.push(newBill);
+                for (let i = 0; i < 12; i++) {
+                    let currentMonth = baseMonth + i;
+                    let currentYear = baseYear;
+
+                    // Ajusta a virada do ano
+                    while (currentMonth > 12) {
+                        currentMonth -= 12;
+                        currentYear += 1;
+                    }
+
+                    const finalMonth = String(currentMonth).padStart(2, '0');
+                    const finalDay = dayStr.padStart(2, '0');
+                    const dateFormatted = `${currentYear}-${finalMonth}-${finalDay}`;
+
+                    bills.push({
+                        id: groupId + i,
+                        groupId: groupId,
+                        title,
+                        value,
+                        date: dateFormatted,
+                        isFixed: true,
+                        status: 'pending'
+                    });
+                }
+            } else {
+                bills.push({
+                    id: Date.now(),
+                    title,
+                    value,
+                    date: initialDateStr,
+                    isFixed: false,
+                    status: 'pending'
+                });
+            }
+
             saveToStorage();
             closeModal();
             render();
@@ -229,11 +261,23 @@
         }
 
         function deleteBill(id) {
-            if (confirm('Deseja excluir esta conta?')) {
-                bills = bills.filter(bill => bill.id !== id);
-                saveToStorage();
-                render();
+            const targetBill = bills.find(b => b.id === id);
+            if (!targetBill) return;
+
+            if (targetBill.isFixed && targetBill.groupId) {
+                const choice = confirm('Esta é uma conta fixa mensal.\n\nClique em OK para excluir TODAS as mensalidades recorrentes dela.\nClique em Cancelar para excluir APENAS esta do mês atual.');
+                if (choice) {
+                    bills = bills.filter(b => b.groupId !== targetBill.groupId);
+                } else {
+                    bills = bills.filter(b => b.id !== id);
+                }
+            } else {
+                if (confirm('Deseja excluir esta conta?')) {
+                    bills = bills.filter(b => b.id !== id);
+                }
             }
+            saveToStorage();
+            render();
         }
 
         function getActualStatus(bill) {
@@ -273,6 +317,9 @@
 
             let totalPaid = 0, totalPending = 0, totalOverdue = 0;
             let countPaid = 0, countPending = 0, countOverdue = 0;
+
+            // Ordena as contas por data de vencimento
+            bills.sort((a, b) => a.date.localeCompare(b.date));
 
             const filteredBills = bills.filter(bill => {
                 const status = getActualStatus(bill);
@@ -354,28 +401,4 @@
                         </div>
 
                         <div class="flex items-center gap-1 border-l border-slate-200 dark:border-neutral-800 pl-3">
-                            <button onclick="addToGoogleCalendar('${bill.title}', ${bill.value}, '${bill.date}')" title="Lembrete Agenda" class="p-2 text-slate-400 hover:text-brandYellow transition">
-                                <i class="fa-regular fa-calendar-plus"></i>
-                            </button>
-                            <button onclick="toggleStatus(${bill.id})" title="Alternar Status" class="p-2 text-slate-400 hover:text-emerald-500 transition">
-                                <i class="fa-solid fa-circle-check"></i>
-                            </button>
-                            <button onclick="deleteBill(${bill.id})" title="Excluir" class="p-2 text-slate-400 hover:text-red-500 transition">
-                                <i class="fa-regular fa-trash-can"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                listEl.appendChild(item);
-            });
-        }
-
-        document.getElementById('resetFilterBtn').onclick = () => {
-            currentFilter = 'all';
-            clearDateFilter();
-        };
-
-        render();
-    </script>
-</body>
-</html>
+                            <button o
